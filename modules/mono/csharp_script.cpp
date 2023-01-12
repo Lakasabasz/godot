@@ -583,7 +583,7 @@ Vector<ScriptLanguage::StackInfo> CSharpLanguage::debug_get_current_stack_info()
 		_recursion_flag_ = false;
 	};
 
-	if (!gdmono->is_runtime_initialized()) {
+	if (gdmono == nullptr || !gdmono->is_runtime_initialized()) {
 		return Vector<StackInfo>();
 	}
 
