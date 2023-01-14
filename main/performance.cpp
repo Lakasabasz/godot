@@ -249,6 +249,9 @@ Performance::MonitorType Performance::get_monitor_type(Monitor p_monitor) const 
 		MONITOR_TYPE_QUANTITY,
 		MONITOR_TYPE_QUANTITY,
 		MONITOR_TYPE_QUANTITY,
+		MONITOR_TYPE_QUANTITY,
+		MONITOR_TYPE_QUANTITY,
+		MONITOR_TYPE_QUANTITY,
 
 	};
 
@@ -313,6 +316,7 @@ uint64_t Performance::get_monitor_modification_time() {
 Performance::Performance() {
 	_process_time = 0;
 	_physics_process_time = 0;
+	_navigation_process_time = 0;
 	_monitor_modification_time = 0;
 	singleton = this;
 }

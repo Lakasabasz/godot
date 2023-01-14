@@ -584,10 +584,11 @@ void EditorNode::_notification(int p_what) {
 		case NOTIFICATION_ENTER_TREE: {
 			Engine::get_singleton()->set_editor_hint(true);
 
-			Window *window = static_cast<Window *>(get_tree()->get_root());
+			Window *window = get_window();
 			if (window) {
 				// Handle macOS fullscreen and extend-to-title changes.
 				window->connect("titlebar_changed", callable_mp(this, &EditorNode::_titlebar_resized));
+				window->set_theme(theme);
 			}
 
 			OS::get_singleton()->set_low_processor_usage_mode_sleep_usec(int(EDITOR_GET("interface/editor/low_processor_mode_sleep_usec")));
@@ -608,6 +609,9 @@ void EditorNode::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_EXIT_TREE: {
+			if (progress_dialog) {
+				progress_dialog->queue_free();
+			}
 			editor_data.save_editor_external_data();
 			FileAccess::set_file_close_fail_notify_callback(nullptr);
 			log->deinit(); // Do not get messages anymore.
@@ -688,9 +692,11 @@ void EditorNode::_notification(int p_what) {
 
 			if (theme_changed) {
 				theme = create_custom_theme(theme_base->get_theme());
+				DisplayServer::set_early_window_clear_color_override(true, theme->get_color(SNAME("background"), SNAME("Editor")));
 
 				theme_base->set_theme(theme);
 				gui_base->set_theme(theme);
+				get_window()->set_theme(theme);
 
 				gui_base->add_theme_style_override("panel", gui_base->get_theme_stylebox(SNAME("Background"), SNAME("EditorStyles")));
 				scene_root_parent->add_theme_style_override("panel", gui_base->get_theme_stylebox(SNAME("Content"), SNAME("EditorStyles")));
@@ -4307,7 +4313,7 @@ bool EditorNode::is_object_of_custom_type(const Object *p_object, const StringNa
 void EditorNode::progress_add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel) {
 	if (singleton->cmdline_export_mode) {
 		print_line(p_task + ": begin: " + p_label + " steps: " + itos(p_steps));
-	} else {
+	} else if (singleton->progress_dialog) {
 		singleton->progress_dialog->add_task(p_task, p_label, p_steps, p_can_cancel);
 	}
 }
@@ -4316,15 +4322,17 @@ bool EditorNode::progress_task_step(const String &p_task, const String &p_state,
 	if (singleton->cmdline_export_mode) {
 		print_line("\t" + p_task + ": step " + itos(p_step) + ": " + p_state);
 		return false;
-	} else {
+	} else if (singleton->progress_dialog) {
 		return singleton->progress_dialog->task_step(p_task, p_state, p_step, p_force_refresh);
+	} else {
+		return false;
 	}
 }
 
 void EditorNode::progress_end_task(const String &p_task) {
 	if (singleton->cmdline_export_mode) {
 		print_line(p_task + ": end");
-	} else {
+	} else if (singleton->progress_dialog) {
 		singleton->progress_dialog->end_task(p_task);
 	}
 }
@@ -6235,6 +6243,7 @@ EditorNode::EditorNode() {
 	// Exporters might need the theme.
 	EditorColorMap::create();
 	theme = create_custom_theme();
+	DisplayServer::set_early_window_clear_color_override(true, theme->get_color(SNAME("background"), SNAME("Editor")));
 
 	register_exporters();
 
@@ -6289,7 +6298,6 @@ EditorNode::EditorNode() {
 	resource_preview = memnew(EditorResourcePreview);
 	add_child(resource_preview);
 	progress_dialog = memnew(ProgressDialog);
-	gui_base->add_child(progress_dialog);
 
 	// Take up all screen.
 	gui_base->set_anchor(SIDE_RIGHT, Control::ANCHOR_END);
